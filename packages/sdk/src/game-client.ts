@@ -30,6 +30,13 @@ export class GameClient {
   private socket: Socket | null = null;
 
   /**
+   * on()/off() register here regardless of connection state, so a caller
+   * can subscribe before connect() without missing the first event. Once
+   * connected, socket.onAny() relays every incoming event into this bus.
+   */
+  private readonly listeners = new Map<string, Set<(payload: unknown) => void>>();
+
+  /**
    * Mirrors what's in SessionStorage while connected: set from storage on
    * connect(), confirmed by session:resumed on a successful reconnect, and
    * cleared on a SESSION_INVALID error. createRoom/joinRoom (epic 4) set it
@@ -52,6 +59,12 @@ export class GameClient {
       auth: stored ? { sessionToken: stored.sessionToken } : undefined,
     });
     this.socket = socket;
+
+    socket.onAny((event: string, payload: unknown) => {
+      for (const handler of this.listeners.get(event) ?? []) {
+        handler(payload);
+      }
+    });
 
     socket.on('session:resumed', (payload: BroadcastEventMap['session:resumed']) => {
       // The sessionToken itself never changes (see memo-backend ADR 0002:
@@ -84,11 +97,13 @@ export class GameClient {
   }
 
   on<E extends keyof BroadcastEventMap>(event: E, handler: BroadcastHandler<E>): void {
-    this.requireSocket().on(event as string, handler as (...args: unknown[]) => void);
+    const set = this.listeners.get(event as string) ?? new Set();
+    set.add(handler as (payload: unknown) => void);
+    this.listeners.set(event as string, set);
   }
 
   off<E extends keyof BroadcastEventMap>(event: E, handler: BroadcastHandler<E>): void {
-    this.requireSocket().off(event as string, handler as (...args: unknown[]) => void);
+    this.listeners.get(event as string)?.delete(handler as (payload: unknown) => void);
   }
 
   protected requireSocket(): Socket {
