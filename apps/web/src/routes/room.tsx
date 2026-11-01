@@ -1,6 +1,6 @@
 import type { RoomState } from '@memo/sdk';
 import { useState } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button } from '../components/ui/button.js';
 import { useRoomState } from '../hooks/use-room-state.js';
 import { useSessionInvalidRedirect } from '../hooks/use-session-invalid-redirect.js';
@@ -11,10 +11,18 @@ const BOARD_COLUMNS: Record<number, number> = { 16: 4, 24: 6, 36: 6 };
 export function Room() {
   const { code } = useParams<{ code: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const client = useGameClient();
-  const { state, gameResult } = useRoomState((location.state as RoomState | null) ?? null);
+  const { state, gameResult, playerLeft } = useRoomState(
+    (location.state as RoomState | null) ?? null,
+  );
   const [actionError, setActionError] = useState<string | null>(null);
   useSessionInvalidRedirect();
+
+  async function handleLeave() {
+    await client.leaveRoom();
+    void navigate('/', { replace: true });
+  }
 
   if (!state) {
     return (
@@ -28,6 +36,9 @@ export function Room() {
   const isHost = state.players[0]?.playerId === myPlayerId;
   const isMyTurn = state.currentTurnPlayerId === myPlayerId;
   const canStart = state.status === 'waiting' && state.players.length === 2 && isHost;
+  const leftPlayer = playerLeft
+    ? state.players.find((p) => p.playerId === playerLeft.playerId)
+    : null;
 
   async function handleStart() {
     setActionError(null);
@@ -45,11 +56,25 @@ export function Room() {
     if (!result.ok) setActionError(result.message);
   }
 
+  if (playerLeft) {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-6">
+        <p>{leftPlayer?.nickname ?? 'Tu rival'} abandonó la partida.</p>
+        <Button onClick={() => void handleLeave()}>Volver al lobby</Button>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-svh flex-col items-center gap-6 p-6">
-      <header className="flex flex-col items-center gap-1 text-center">
-        <p className="text-sm text-muted-foreground">Sala</p>
-        <h1 className="text-2xl font-semibold">{state.code}</h1>
+      <header className="flex w-full max-w-sm items-center justify-between">
+        <div className="flex flex-col items-start gap-1">
+          <p className="text-sm text-muted-foreground">Sala</p>
+          <h1 className="text-2xl font-semibold">{state.code}</h1>
+        </div>
+        <Button variant="outline" onClick={() => void handleLeave()}>
+          Salir de la sala
+        </Button>
       </header>
 
       <section className="flex gap-6">

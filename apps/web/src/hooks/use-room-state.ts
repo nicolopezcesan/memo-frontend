@@ -2,6 +2,7 @@ import type {
   CardFlippedEvent,
   GameEndedEvent,
   PlayerDisconnectedEvent,
+  PlayerLeftEvent,
   PlayerReconnectedEvent,
   PlayerState,
   RoomPlayerJoinedEvent,
@@ -86,12 +87,17 @@ export interface GameEndedResult {
 export interface RoomStateHook {
   state: RoomState | null;
   gameResult: GameEndedResult | null;
+  /** Set once the other player leaves on purpose (room:leave) - the room
+   * is gone server-side at that point, so this is shown instead of the
+   * board rather than alongside it. */
+  playerLeft: PlayerLeftEvent | null;
 }
 
 export function useRoomState(initialState: RoomState | null = null): RoomStateHook {
   const client = useGameClient();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [gameResult, setGameResult] = useState<GameEndedResult | null>(null);
+  const [playerLeft, setPlayerLeft] = useState<PlayerLeftEvent | null>(null);
 
   useEffect(() => {
     const handlePlayerJoined = (payload: RoomPlayerJoinedEvent) => {
@@ -128,6 +134,9 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
     const handlePlayerReconnected = (payload: PlayerReconnectedEvent) => {
       dispatch({ type: 'connectivity', playerId: payload.playerId, connected: true });
     };
+    const handlePlayerLeft = (payload: PlayerLeftEvent) => {
+      setPlayerLeft(payload);
+    };
 
     client.on('room:playerJoined', handlePlayerJoined);
     client.on('game:started', handleGameStarted);
@@ -138,6 +147,7 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
     client.on('game:ended', handleGameEnded);
     client.on('player:disconnected', handlePlayerDisconnected);
     client.on('player:reconnected', handlePlayerReconnected);
+    client.on('player:left', handlePlayerLeft);
 
     return () => {
       client.off('room:playerJoined', handlePlayerJoined);
@@ -149,8 +159,9 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
       client.off('game:ended', handleGameEnded);
       client.off('player:disconnected', handlePlayerDisconnected);
       client.off('player:reconnected', handlePlayerReconnected);
+      client.off('player:left', handlePlayerLeft);
     };
   }, [client]);
 
-  return { state, gameResult };
+  return { state, gameResult, playerLeft };
 }
