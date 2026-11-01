@@ -1,6 +1,16 @@
 import { io, type Socket } from 'socket.io-client';
 import type { SessionStorage, StoredSession } from './session-storage.js';
-import type { BroadcastEventMap } from './types/index.js';
+import type {
+  Ack,
+  BroadcastEventMap,
+  CardFlipPayload,
+  CardFlipResult,
+  RoomCreatePayload,
+  RoomCreateResult,
+  RoomJoinPayload,
+  RoomJoinResult,
+  RoomStartResult,
+} from './types/index.js';
 
 export interface GameClientOptions {
   url: string;
@@ -12,9 +22,9 @@ type BroadcastHandler<E extends keyof BroadcastEventMap> = (
 ) => void;
 
 /**
- * Thin wrapper over socket.io-client: connection, session persistence and
- * reconnection. Game actions (createRoom/joinRoom/startGame/flipCard) are
- * added on top of this in epic 4.
+ * Thin wrapper over socket.io-client: connection, session persistence,
+ * reconnection, and the game actions (createRoom/joinRoom/startGame/
+ * flipCard), each mapping 1:1 to an ack-based event on memo-backend.
  */
 export class GameClient {
   private socket: Socket | null = null;
@@ -86,5 +96,42 @@ export class GameClient {
       throw new Error('GameClient is not connected. Call connect() first.');
     }
     return this.socket;
+  }
+
+  async createRoom(payload: RoomCreatePayload): Promise<Ack<RoomCreateResult>> {
+    const result = await this.requireSocket().emitWithAck('room:create', payload);
+    if (result.ok) {
+      await this.persistSession({
+        sessionToken: result.sessionToken,
+        roomCode: result.roomCode,
+        playerId: result.playerId,
+      });
+    }
+    return result as Ack<RoomCreateResult>;
+  }
+
+  async joinRoom(payload: RoomJoinPayload): Promise<Ack<RoomJoinResult>> {
+    const result = await this.requireSocket().emitWithAck('room:join', payload);
+    if (result.ok) {
+      await this.persistSession({
+        sessionToken: result.sessionToken,
+        roomCode: payload.roomCode,
+        playerId: result.playerId,
+      });
+    }
+    return result as Ack<RoomJoinResult>;
+  }
+
+  async startGame(): Promise<Ack<RoomStartResult>> {
+    return this.requireSocket().emitWithAck('room:start', {});
+  }
+
+  async flipCard(payload: CardFlipPayload): Promise<Ack<CardFlipResult>> {
+    return this.requireSocket().emitWithAck('card:flip', payload);
+  }
+
+  private async persistSession(session: StoredSession): Promise<void> {
+    this.currentSession = session;
+    await this.options.storage.set(session);
   }
 }
