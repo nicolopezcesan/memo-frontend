@@ -9,6 +9,7 @@ export interface RoomCreateResult {
   roomCode: string;
   sessionToken: string;
   playerId: string;
+  state: RoomState;
 }
 
 export interface RoomJoinPayload {

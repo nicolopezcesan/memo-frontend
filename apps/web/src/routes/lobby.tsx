@@ -50,7 +50,7 @@ export function Lobby() {
         boardSize: Number(boardSize),
       });
       if (result.ok) {
-        void navigate(`/room/${result.roomCode}`);
+        void navigate(`/room/${result.roomCode}`, { state: result.state });
       } else {
         setCreateError(result.message);
       }
@@ -70,7 +70,7 @@ export function Lobby() {
         nickname: joinNickname,
       });
       if (result.ok) {
-        void navigate(`/room/${roomCode.trim().toUpperCase()}`);
+        void navigate(`/room/${roomCode.trim().toUpperCase()}`, { state: result.state });
       } else {
         setJoinError(result.message);
       }
