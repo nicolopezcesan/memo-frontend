@@ -102,6 +102,7 @@ export function Room() {
             <button
               key={index}
               type="button"
+              data-testid={`card-${index}`}
               onClick={() => void handleFlip(index)}
               disabled={state.status !== 'playing' || !isMyTurn || card.matched}
               className="flex size-16 items-center justify-center rounded-lg border bg-card text-lg font-semibold disabled:cursor-default"
