@@ -57,7 +57,13 @@ export async function startFakeGatewayServer(): Promise<FakeGatewayServer> {
       socket.data.roomCode = code;
       socket.data.playerId = playerId;
       void socket.join(code);
-      ack({ ok: true, roomCode: code, sessionToken: sessionToken2, playerId });
+      ack({
+        ok: true,
+        roomCode: code,
+        sessionToken: sessionToken2,
+        playerId,
+        state: rooms.get(code),
+      });
     });
 
     socket.on(
