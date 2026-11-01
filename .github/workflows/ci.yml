@@ -28,3 +28,59 @@ jobs:
       - run: npm run typecheck
 
       - run: npm run test
+
+  e2e:
+    needs: lint-typecheck-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: memo-frontend
+
+      # memo-backend is a separate public repo; checked out here only to run
+      # it for e2e (clone + docker-compose, no published image/staging env
+      # to point at instead - see docs/adr in this repo's issue history).
+      - uses: actions/checkout@v4
+        with:
+          repository: nicolopezcesan/memo-backend
+          path: memo-backend
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Start memo-backend (+ Redis)
+        working-directory: memo-backend
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/health
+
+      - name: Install frontend deps
+        working-directory: memo-frontend
+        run: npm ci
+
+      - name: Build @memo/sdk
+        working-directory: memo-frontend
+        run: npm run build -w packages/sdk
+
+      - name: Install Playwright browsers
+        working-directory: memo-frontend
+        run: npx playwright install --with-deps chromium -w apps/web
+
+      - name: Run e2e tests
+        working-directory: memo-frontend
+        env:
+          REDIS_URL: redis://localhost:6379
+          VITE_BACKEND_URL: http://localhost:3000
+        run: npm run test:e2e -w apps/web
+
+      - name: Backend logs (on failure)
+        if: failure()
+        working-directory: memo-backend
+        run: docker compose logs
