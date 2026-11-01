@@ -9,6 +9,7 @@ import type {
   RoomCreateResult,
   RoomJoinPayload,
   RoomJoinResult,
+  RoomLeaveResult,
   RoomStartResult,
 } from './types/index.js';
 
@@ -160,6 +161,15 @@ export class GameClient {
 
   async flipCard(payload: CardFlipPayload): Promise<Ack<CardFlipResult>> {
     return this.requireSocket().emitWithAck('card:flip', payload);
+  }
+
+  /** Deliberate exit: clears the local session regardless of the server's
+   * answer, since there is nothing left to resume either way. */
+  async leaveRoom(): Promise<Ack<RoomLeaveResult>> {
+    const result = await this.requireSocket().emitWithAck('room:leave', {});
+    this.currentSession = null;
+    await this.options.storage.clear();
+    return result;
   }
 
   private async persistSession(session: StoredSession): Promise<void> {

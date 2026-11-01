@@ -149,6 +149,28 @@ describe('GameClient', () => {
     });
   });
 
+  describe('leaveRoom', () => {
+    it('notifies the other player and clears the local session', async () => {
+      const storage = createMemoryStorage();
+      const host = newClient(storage);
+      await host.connect();
+      const created = await host.createRoom({ nickname: 'Alice', boardSize: 4 });
+      if (!created.ok) throw new Error('expected ok:true');
+
+      const guest = newClient();
+      await guest.connect();
+      await guest.joinRoom({ roomCode: created.roomCode, nickname: 'Bob' });
+
+      const playerLeft = waitForEvent(guest, 'player:left');
+      const result = await host.leaveRoom();
+
+      expect(result.ok).toBe(true);
+      expect(host.session).toBeNull();
+      expect(await storage.get()).toBeNull();
+      await expect(playerLeft).resolves.toBeDefined();
+    });
+  });
+
   describe('reconnection', () => {
     it('resumes a session and receives session:resumed', async () => {
       const host = newClient();

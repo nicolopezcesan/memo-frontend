@@ -19,6 +19,7 @@ function createMockClient(playerId: string | null) {
     }),
     startGame: vi.fn().mockResolvedValue({ ok: true }),
     flipCard: vi.fn().mockResolvedValue({ ok: true }),
+    leaveRoom: vi.fn().mockResolvedValue({ ok: true }),
   };
   Object.defineProperty(client, 'session', {
     get: () => (playerId ? { sessionToken: 't', roomCode: 'ABC123', playerId } : null),
@@ -85,8 +86,7 @@ describe('Room', () => {
     const { client } = createMockClient('host');
     renderRoom(client, baseState({ status: 'playing' }));
 
-    const cards = screen.getAllByRole('button');
-    fireEvent.click(cards[0]);
+    fireEvent.click(screen.getByTestId('card-0'));
 
     await waitFor(() => expect(client.flipCard).toHaveBeenCalledWith({ cardIndex: 0 }));
   });
@@ -95,8 +95,7 @@ describe('Room', () => {
     const { client } = createMockClient('guest');
     renderRoom(client, baseState({ status: 'playing', currentTurnPlayerId: 'host' }));
 
-    const cards = screen.getAllByRole('button');
-    fireEvent.click(cards[0]);
+    fireEvent.click(screen.getByTestId('card-0'));
 
     expect(client.flipCard).not.toHaveBeenCalled();
   });
@@ -106,10 +105,34 @@ describe('Room', () => {
     renderRoom(client, baseState({ status: 'playing' }));
 
     emit('card:flipped', { cardIndex: 0, symbol: 'A', byPlayerId: 'host' });
-    await waitFor(() => expect(screen.getAllByRole('button')[0]).toHaveTextContent('A'));
+    await waitFor(() => expect(screen.getByTestId('card-0')).toHaveTextContent('A'));
 
     emit('game:ended', { scores: { host: 2, guest: 0 }, winnerId: 'host' });
     await waitFor(() => expect(screen.getByText('¡Ganaste!')).toBeInTheDocument());
+  });
+
+  it('shows the leave button and calls leaveRoom + navigates on click', async () => {
+    const { client } = createMockClient('host');
+    renderRoom(client, baseState());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salir de la sala' }));
+
+    await waitFor(() => expect(client.leaveRoom).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText('Elegí tu nombre y el tamaño del tablero.')).toBeInTheDocument(),
+    );
+  });
+
+  it('shows a dedicated screen when the other player leaves on purpose', async () => {
+    const { client, emit } = createMockClient('host');
+    renderRoom(client, baseState({ status: 'playing' }));
+
+    emit('player:left', { playerId: 'guest' });
+
+    await waitFor(() =>
+      expect(screen.getByText('Bob abandonó la partida.')).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('card-0')).not.toBeInTheDocument();
   });
 
   it('shows a banner when the other player disconnects, and clears it on reconnect', async () => {

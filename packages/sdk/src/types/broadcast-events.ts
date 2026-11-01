@@ -34,6 +34,12 @@ export interface PlayerReconnectedEvent {
   playerId: string;
 }
 
+/** A player left on purpose (room:leave), unlike player:disconnected
+ * (network drop, can reconnect) - the room no longer exists once this fires. */
+export interface PlayerLeftEvent {
+  playerId: string;
+}
+
 export interface GameEndedEvent {
   scores: Record<string, number>;
   winnerId: string | null;
@@ -58,6 +64,7 @@ export interface BroadcastEventMap {
   'turn:changed': TurnChangedEvent;
   'player:disconnected': PlayerDisconnectedEvent;
   'player:reconnected': PlayerReconnectedEvent;
+  'player:left': PlayerLeftEvent;
   'game:ended': GameEndedEvent;
   'session:resumed': SessionResumedEvent;
   error: ServerErrorEvent;
