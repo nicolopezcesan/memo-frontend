@@ -10,5 +10,8 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.4"
   }
 }
