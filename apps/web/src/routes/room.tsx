@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Button } from '../components/ui/button.js';
 import { useRoomState } from '../hooks/use-room-state.js';
+import { useSessionInvalidRedirect } from '../hooks/use-session-invalid-redirect.js';
 import { useGameClient } from '../providers/game-client-provider.js';
 
 const BOARD_COLUMNS: Record<number, number> = { 16: 4, 24: 6, 36: 6 };
@@ -13,6 +14,7 @@ export function Room() {
   const client = useGameClient();
   const { state, gameResult } = useRoomState((location.state as RoomState | null) ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
+  useSessionInvalidRedirect();
 
   if (!state) {
     return (
@@ -67,6 +69,14 @@ export function Room() {
           </div>
         ))}
       </section>
+
+      {state.players
+        .filter((player) => player.playerId !== myPlayerId && !player.connected)
+        .map((player) => (
+          <p key={player.playerId} className="text-sm text-muted-foreground">
+            {player.nickname} se desconectó. Esperando a que vuelva…
+          </p>
+        ))}
 
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
 

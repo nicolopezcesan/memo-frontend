@@ -1,6 +1,8 @@
 import type {
   CardFlippedEvent,
   GameEndedEvent,
+  PlayerDisconnectedEvent,
+  PlayerReconnectedEvent,
   PlayerState,
   RoomPlayerJoinedEvent,
   RoomState,
@@ -21,7 +23,8 @@ type RoomAction =
   | { type: 'hideCards'; cardIndices: number[] }
   | { type: 'turnResult'; matched: boolean; cardIndices: [number, number]; scores: Record<string, number> }
   | { type: 'turnChanged'; currentTurnPlayerId: string }
-  | { type: 'gameEnded'; scores: Record<string, number> };
+  | { type: 'gameEnded'; scores: Record<string, number> }
+  | { type: 'connectivity'; playerId: string; connected: boolean };
 
 function applyScores(players: PlayerState[], scores: Record<string, number>): PlayerState[] {
   return players.map((player) => ({ ...player, score: scores[player.playerId] ?? player.score }));
@@ -62,6 +65,15 @@ function reducer(state: RoomState | null, action: RoomAction): RoomState | null 
       return { ...state!, currentTurnPlayerId: action.currentTurnPlayerId };
     case 'gameEnded':
       return { ...state!, status: 'finished', players: applyScores(state!.players, action.scores) };
+    case 'connectivity':
+      return {
+        ...state!,
+        players: state!.players.map((player) =>
+          player.playerId === action.playerId
+            ? { ...player, connected: action.connected }
+            : player,
+        ),
+      };
     default:
       return state;
   }
@@ -110,6 +122,12 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
       dispatch({ type: 'gameEnded', scores: payload.scores });
       setGameResult({ winnerId: payload.winnerId });
     };
+    const handlePlayerDisconnected = (payload: PlayerDisconnectedEvent) => {
+      dispatch({ type: 'connectivity', playerId: payload.playerId, connected: false });
+    };
+    const handlePlayerReconnected = (payload: PlayerReconnectedEvent) => {
+      dispatch({ type: 'connectivity', playerId: payload.playerId, connected: true });
+    };
 
     client.on('room:playerJoined', handlePlayerJoined);
     client.on('game:started', handleGameStarted);
@@ -118,6 +136,8 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
     client.on('turn:result', handleTurnResult);
     client.on('turn:changed', handleTurnChanged);
     client.on('game:ended', handleGameEnded);
+    client.on('player:disconnected', handlePlayerDisconnected);
+    client.on('player:reconnected', handlePlayerReconnected);
 
     return () => {
       client.off('room:playerJoined', handlePlayerJoined);
@@ -127,6 +147,8 @@ export function useRoomState(initialState: RoomState | null = null): RoomStateHo
       client.off('turn:result', handleTurnResult);
       client.off('turn:changed', handleTurnChanged);
       client.off('game:ended', handleGameEnded);
+      client.off('player:disconnected', handlePlayerDisconnected);
+      client.off('player:reconnected', handlePlayerReconnected);
     };
   }, [client]);
 
