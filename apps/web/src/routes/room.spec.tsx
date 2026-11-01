@@ -1,6 +1,7 @@
 import type { GameClient, RoomState } from '@memo/sdk';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { Lobby } from './lobby.js';
 import { describe, expect, it, vi } from 'vitest';
 import { GameClientContext } from '../providers/game-client-provider.js';
 import { Room } from './room.js';
@@ -37,6 +38,7 @@ function renderRoom(client: GameClient, initialState: RoomState) {
         initialEntries={[{ pathname: '/room/ABC123', state: initialState }]}
       >
         <Routes>
+          <Route path="/" element={<Lobby />} />
           <Route path="/room/:code" element={<Room />} />
         </Routes>
       </MemoryRouter>
@@ -108,5 +110,33 @@ describe('Room', () => {
 
     emit('game:ended', { scores: { host: 2, guest: 0 }, winnerId: 'host' });
     await waitFor(() => expect(screen.getByText('¡Ganaste!')).toBeInTheDocument());
+  });
+
+  it('shows a banner when the other player disconnects, and clears it on reconnect', async () => {
+    const { client, emit } = createMockClient('host');
+    renderRoom(client, baseState({ status: 'playing' }));
+
+    emit('player:disconnected', { playerId: 'guest' });
+    await waitFor(() =>
+      expect(screen.getByText('Bob se desconectó. Esperando a que vuelva…')).toBeInTheDocument(),
+    );
+
+    emit('player:reconnected', { playerId: 'guest' });
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Bob se desconectó. Esperando a que vuelva…'),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('redirects to the lobby on a SESSION_INVALID error', async () => {
+    const { client, emit } = createMockClient('host');
+    renderRoom(client, baseState());
+
+    emit('error', { code: 'SESSION_INVALID', message: 'expired' });
+
+    await waitFor(() =>
+      expect(screen.getByText('Elegí tu nombre y el tamaño del tablero.')).toBeInTheDocument(),
+    );
   });
 });
