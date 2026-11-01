@@ -124,6 +124,19 @@ export async function startFakeGatewayServer(): Promise<FakeGatewayServer> {
       });
       ack({ ok: true });
     });
+
+    socket.on('room:leave', (_payload: unknown, ack) => {
+      const roomCode = socket.data.roomCode as string | undefined;
+      const playerId = socket.data.playerId as string | undefined;
+      if (!roomCode) {
+        ack({ ok: false, code: 'VALIDATION_ERROR', message: 'no active room' });
+        return;
+      }
+      rooms.delete(roomCode);
+      socket.to(roomCode).emit('player:left', { playerId });
+      void socket.leave(roomCode);
+      ack({ ok: true });
+    });
   });
 
   await new Promise<void>((resolve) => httpServer.listen(0, resolve));

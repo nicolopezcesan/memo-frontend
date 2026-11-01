@@ -33,3 +33,7 @@ export interface CardFlipPayload {
 }
 
 export type CardFlipResult = Record<string, never>;
+
+// Same identity-bound-to-socket reasoning as room:start/card:flip.
+export type RoomLeavePayload = Record<string, never>;
+export type RoomLeaveResult = Record<string, never>;
