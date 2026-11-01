@@ -1,0 +1,12 @@
+{
+  "name": "@memo/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint --type-aware src/",
+    "typecheck": "tsc --noEmit",
+    "build": "echo \"apps/web build pending epic 6 (Vite)\"",
+    "test": "vitest run"
+  }
+}
