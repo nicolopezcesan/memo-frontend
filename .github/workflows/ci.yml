@@ -18,6 +18,11 @@ jobs:
 
       - run: npm ci
 
+      # apps/web imports @memo/sdk's compiled dist/, which isn't committed
+      # (gitignored build output) - build it before anything that resolves
+      # the package, or typecheck/test fail with a bare "cannot find module".
+      - run: npm run build -w packages/sdk
+
       - run: npm run lint
 
       - run: npm run typecheck
