@@ -63,6 +63,16 @@ describe('GameClient', () => {
       expect(client.connected).toBe(true);
       expect(client.session).toBeNull();
     });
+
+    it('is idempotent under concurrent calls', async () => {
+      const client = newClient();
+      await Promise.all([client.connect(), client.connect(), client.connect()]);
+      expect(client.connected).toBe(true);
+
+      // Already connected: a further call resolves immediately without error.
+      await client.connect();
+      expect(client.connected).toBe(true);
+    });
   });
 
   describe('createRoom / joinRoom', () => {

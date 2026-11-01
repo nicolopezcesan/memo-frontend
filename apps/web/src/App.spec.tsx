@@ -5,6 +5,8 @@ import { App } from './App.js';
 describe('App', () => {
   it('renders the lobby at the root route', () => {
     render(<App />);
-    expect(screen.getByText('Memo')).toBeInTheDocument();
+    expect(
+      screen.getByText('Elegí tu nombre y el tamaño del tablero.'),
+    ).toBeInTheDocument();
   });
 });

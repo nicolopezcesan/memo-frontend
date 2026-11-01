@@ -44,13 +44,30 @@ export class GameClient {
    */
   protected currentSession: StoredSession | null = null;
 
+  private connectPromise: Promise<void> | null = null;
+
   constructor(protected readonly options: GameClientOptions) {}
 
   get session(): StoredSession | null {
     return this.currentSession;
   }
 
+  /**
+   * Idempotent: a caller doesn't need to track whether connect() already
+   * ran or is in flight (e.g. a UI calling it on every form submit) -
+   * concurrent calls share the same connection attempt.
+   */
   async connect(): Promise<void> {
+    if (this.socket?.connected) return;
+    if (!this.connectPromise) {
+      this.connectPromise = this.doConnect().finally(() => {
+        this.connectPromise = null;
+      });
+    }
+    return this.connectPromise;
+  }
+
+  private async doConnect(): Promise<void> {
     const stored = await this.options.storage.get();
     this.currentSession = stored;
 

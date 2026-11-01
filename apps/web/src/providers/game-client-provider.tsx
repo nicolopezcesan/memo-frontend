@@ -1,7 +1,9 @@
 import { createLocalStorageSession, GameClient } from '@memo/sdk';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
-const GameClientContext = createContext<GameClient | null>(null);
+// Exported so tests can render `<GameClientContext.Provider value={mockClient}>`
+// instead of going through a real GameClient/socket connection.
+export const GameClientContext = createContext<GameClient | null>(null);
 
 export interface GameClientProviderProps {
   url: string;
