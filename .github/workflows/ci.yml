@@ -70,8 +70,8 @@ jobs:
         run: npm run build -w packages/sdk
 
       - name: Install Playwright browsers
-        working-directory: memo-frontend
-        run: npx playwright install --with-deps chromium -w apps/web
+        working-directory: memo-frontend/apps/web
+        run: npx playwright install --with-deps chromium
 
       - name: Run e2e tests
         working-directory: memo-frontend
